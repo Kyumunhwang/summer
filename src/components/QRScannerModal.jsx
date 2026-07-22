@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { playClickSound, playCoinSound, playErrorSound } from '../utils/sound';
 import { parseQRData, getTeacherItems } from '../utils/storage';
 import { Camera, X, RefreshCw, Zap } from 'lucide-react';
@@ -7,61 +7,92 @@ import { Camera, X, RefreshCw, Zap } from 'lucide-react';
 export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
   const [scanError, setScanError] = useState('');
   const [simMode, setSimMode] = useState(false);
-  const scannerRef = useRef(null);
+  const [isCameraStarting, setIsCameraStarting] = useState(false);
+
+  const html5QrCodeRef = useRef(null);
 
   useEffect(() => {
-    if (!isOpen || simMode) return;
+    if (!isOpen || simMode) {
+      stopCamera();
+      return;
+    }
 
-    // Initialize HTML5 QR Scanner
-    const scanner = new Html5QrcodeScanner(
-      'qr-reader-region',
-      {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0,
-      },
-      /* verbose= */ false
-    );
-
-    scanner.render(
-      (decodedText) => {
-        // Success callback
-        playCoinSound();
-        const parsed = parseQRData(decodedText);
-        if (parsed) {
-          scanner.clear();
-          onScanSuccess(parsed);
-        } else {
-          setScanError('인식할 수 없는 Dallar Market QR 코드입니다.');
-          playErrorSound();
-        }
-      },
-      (error) => {
-        // Ignored minor frame errors
-      }
-    );
-
-    scannerRef.current = scanner;
+    startCamera();
 
     return () => {
-      if (scannerRef.current) {
-        try {
-          scannerRef.current.clear();
-        } catch (e) {
-          console.warn('Scanner clear error:', e);
-        }
-      }
+      stopCamera();
     };
   }, [isOpen, simMode]);
 
+  const startCamera = async () => {
+    setScanError('');
+    setIsCameraStarting(true);
+
+    try {
+      if (html5QrCodeRef.current) {
+        await stopCamera();
+      }
+
+      const html5QrCode = new Html5Qrcode("qr-reader-region");
+      html5QrCodeRef.current = html5QrCode;
+
+      const config = {
+        fps: 15,
+        qrbox: { width: 260, height: 260 },
+        aspectRatio: 1.0
+      };
+
+      // Start live camera with mobile rear camera preference
+      await html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText) => {
+          // On QR Code Scan Success
+          playCoinSound();
+          const parsed = parseQRData(decodedText);
+          if (parsed) {
+            stopCamera();
+            onScanSuccess(parsed);
+          } else {
+            setScanError('Dallar Market 공식 QR 코드가 아닙니다.');
+            playErrorSound();
+          }
+        },
+        (errorMessage) => {
+          // Ignored non-scan frames
+        }
+      );
+
+      setIsCameraStarting(false);
+    } catch (err) {
+      console.error('Camera start failed:', err);
+      setIsCameraStarting(false);
+      setScanError('카메라 접근 승인이 필요합니다. 브라우저 카메라 권한 허용을 클릭해 주세요.');
+    }
+  };
+
+  const stopCamera = async () => {
+    if (html5QrCodeRef.current) {
+      try {
+        if (html5QrCodeRef.current.isScanning) {
+          await html5QrCodeRef.current.stop();
+        }
+        html5QrCodeRef.current.clear();
+      } catch (e) {
+        console.warn('Camera stop error:', e);
+      }
+      html5QrCodeRef.current = null;
+    }
+  };
+
   if (!isOpen) return null;
 
-  // Simulation Helpers for easy testing
   const sampleItems = getTeacherItems();
 
   const handleSimulateScan = (qrObject) => {
     playClickSound();
     playCoinSound();
+    stopCamera();
     onScanSuccess(qrObject);
   };
 
@@ -72,6 +103,7 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
           className="close-btn"
           onClick={() => {
             playClickSound();
+            stopCamera();
             onClose();
           }}
         >
@@ -79,7 +111,7 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
         </button>
 
         <div className="temu-header">
-          <div className="temu-badge-flash">📷 QR CAMERA SCANNER</div>
+          <div className="temu-badge-flash">📷 LIVE QR CAMERA</div>
           <h2>DALLAR SCANNER</h2>
           <p>선생님의 물품 QR 또는 포인트 QR을 카메라에 비춰주세요!</p>
         </div>
@@ -102,8 +134,20 @@ export const QRScannerModal = ({ isOpen, onClose, onScanSuccess }) => {
 
         {!simMode ? (
           <div className="camera-box">
-            <div id="qr-reader-region"></div>
-            {scanError && <p className="scan-error-msg">{scanError}</p>}
+            <div id="qr-reader-region" style={{ width: '100%', minHeight: '280px' }}></div>
+
+            {isCameraStarting && (
+              <p className="cam-loading-msg">📷 라이브 카메라 준비 중...</p>
+            )}
+
+            {scanError && (
+              <div className="scan-error-card">
+                <p className="scan-error-msg">{scanError}</p>
+                <button className="retry-cam-btn" onClick={startCamera}>
+                  <RefreshCw size={16} /> 카메라 다시 켜기
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="simulator-box">

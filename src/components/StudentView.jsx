@@ -1,88 +1,136 @@
-import React, { useState } from 'react';
-import { playClickSound, playCoinSound, toggleSound, isSoundEnabled } from '../utils/sound';
+import React, { useState, useEffect } from 'react';
 import { getTeacherItems, getPurchaseHistory } from '../utils/storage';
-import { Camera, Volume2, VolumeX, Sparkles, Gift, Trophy, ShoppingBag, History, Award, User } from 'lucide-react';
+import { playClickSound } from '../utils/sound';
+import { ShoppingBag, History, LogOut, Camera } from 'lucide-react';
 
-export const StudentView = ({
-  student,
-  onOpenScanner,
-  onOpenWheel,
-  onOpenLuckyBox,
-  onSelectItemToBuy,
-  onSwitchToTeacher
-}) => {
-  const [soundOn, setSoundOn] = useState(isSoundEnabled());
+export const StudentView = ({ student, onLogout, onOpenScanner, onOpenWheel, onOpenLuckyBox, gameConfig, onDataChange }) => {
+  const [items, setItems] = useState(getTeacherItems());
+  const [history, setHistory] = useState(getPurchaseHistory(student?.id));
   const [showHistory, setShowHistory] = useState(false);
 
-  const items = getTeacherItems();
-  const history = getPurchaseHistory();
+  useEffect(() => {
+    const handleItemsChanged = () => {
+      setItems(getTeacherItems());
+    };
+    const handleHistoryChanged = () => {
+      setHistory(getPurchaseHistory(student?.id));
+    };
+    const handleStorageChanged = () => {
+      setItems(getTeacherItems());
+      setHistory(getPurchaseHistory(student?.id));
+    };
 
-  const handleToggleAudio = () => {
-    const newState = toggleSound();
-    setSoundOn(newState);
-    if (newState) playCoinSound();
-  };
+    setHistory(getPurchaseHistory(student?.id));
+
+    window.addEventListener('dallarItemsChanged', handleItemsChanged);
+    window.addEventListener('dallarHistoryChanged', handleHistoryChanged);
+    window.addEventListener('storage', handleStorageChanged);
+    return () => {
+      window.removeEventListener('dallarItemsChanged', handleItemsChanged);
+      window.removeEventListener('dallarHistoryChanged', handleHistoryChanged);
+      window.removeEventListener('storage', handleStorageChanged);
+    };
+  }, [student]);
+
+
+  const wheelSpinsLeft = student?.spinsLeft !== undefined ? student.spinsLeft : 1;
+  const luckyBoxSpinsLeft = student?.luckyBoxSpinsLeft !== undefined ? student.luckyBoxSpinsLeft : 1;
+
+  const isWheelPlayable = gameConfig.isWheelEnabled && wheelSpinsLeft > 0;
+  const isLuckyBoxPlayable = gameConfig.isLuckyBoxEnabled && luckyBoxSpinsLeft > 0;
 
   return (
     <div className="student-container">
-      {/* Top Banner Bar */}
-      <div className="top-banner-bar">
-        <div className="student-profile">
-          <span className="avatar-badge">{student.avatar || '🦁'}</span>
-          <div>
-            <h2 className="student-name">{student.name}</h2>
-            <span className="student-sub">2026 Summer School Student</span>
+      {/* Top Profile Header Bar */}
+      <div className="student-header">
+        <div className="profile-info">
+          <div className="profile-text">
+            <div className="student-title-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <h2>{student?.name} 학생 <span className="student-id-tag">({student?.id})</span></h2>
+              <button
+                className="compact-logout-btn"
+                onClick={() => { playClickSound(); onLogout(); }}
+              >
+                <LogOut size={13} /> 로그아웃
+              </button>
+            </div>
+            <p className="welcome-tag">Funday Dallar Market</p>
           </div>
-        </div>
-
-        <div className="top-actions">
-          <button className="icon-action-btn" onClick={handleToggleAudio} title="음향 효과">
-            {soundOn ? <Volume2 size={20} className="text-gold" /> : <VolumeX size={20} className="text-gray" />}
-          </button>
-          <button
-            className="icon-action-btn teacher-switch"
-            onClick={() => { playClickSound(); onSwitchToTeacher(); }}
-            title="선생님 모드"
-          >
-            <Award size={20} />
-          </button>
         </div>
       </div>
 
-      {/* Wallet Balance Hero Card (Temu Gold Theme) */}
-      <div className="wallet-hero-card glow-temu">
-        <div className="wallet-header">
-          <span>MY DALAN WALLET</span>
-          <span className="pulse-dot">● LIVE</span>
-        </div>
 
-        <div className="balance-display">
-          <span className="coin-emoji animate-bounce-slow">🪙</span>
-          <h1 className="balance-amount">{student.points}</h1>
-          <span className="currency-unit">DALLAR</span>
+      {/* DALLAR Balance Card */}
+      <div className="balance-card animate-pop">
+        <div className="balance-content">
+          <div className="balance-amount">
+            <span className="amount-number">{student?.points || 0}</span>
+            <span className="unit">DALLAR</span>
+          </div>
         </div>
+      </div>
 
-        {/* Quick Game Event Buttons */}
-        <div className="event-buttons-row">
+
+      {/* Teacher Control Game Event Banner Cards */}
+      <div className="game-banner-section">
+        <h3 className="section-title">🎮 럭키 이벤트 존</h3>
+
+        <div className="event-buttons-grid">
           <button
-            className={`event-btn temu-wheel-btn ${student.spinsLeft > 0 ? 'pulse' : ''}`}
-            onClick={() => { playClickSound(); onOpenWheel(); }}
+            className={`event-btn wheel-btn ${isWheelPlayable ? 'pulse' : ''} ${!isWheelPlayable ? 'locked-btn' : ''}`}
+            disabled={!isWheelPlayable}
+            onClick={() => {
+              if (!gameConfig.isWheelEnabled) {
+                alert('선생님이 룰렛 게임 참여를 비활성화(잠금)하였습니다.');
+                return;
+              }
+              if (wheelSpinsLeft <= 0) {
+                alert('오늘의 룰렛 1회 도전 기회를 모두 사용하셨습니다! (선생님이 티켓을 부여해 주셔야 재도전 가능)');
+                return;
+              }
+              playClickSound();
+              onOpenWheel();
+            }}
           >
-            <span className="event-icon">🎡</span>
+            <span className="event-icon">{isWheelPlayable ? '🎡' : '🔒'}</span>
             <div className="event-text">
               <strong>100% 당첨 룰렛</strong>
-              <span className="badge-count">티켓: {student.spinsLeft || 0}개</span>
+              <span className="badge-count">
+                {!gameConfig.isWheelEnabled
+                  ? '선생님 승인 대기 중'
+                  : wheelSpinsLeft > 0
+                  ? `남은 기회: ${wheelSpinsLeft}회`
+                  : '기회 소진 (0회)'}
+              </span>
             </div>
           </button>
 
           <button
-            className="event-btn lucky-box-btn"
-            onClick={() => { playClickSound(); onOpenLuckyBox(); }}
+            className={`event-btn lucky-box-btn ${isLuckyBoxPlayable ? 'pulse' : ''} ${!isLuckyBoxPlayable ? 'locked-btn' : ''}`}
+            disabled={!isLuckyBoxPlayable}
+            onClick={() => {
+              if (!gameConfig.isLuckyBoxEnabled) {
+                alert('선생님이 럭키 박스 참여를 비활성화(잠금)하였습니다.');
+                return;
+              }
+              if (luckyBoxSpinsLeft <= 0) {
+                alert('오늘의 럭키 박스 1회 도전 기회를 모두 사용하셨습니다! (선생님이 티켓을 부여해 주셔야 재도전 가능)');
+                return;
+              }
+              playClickSound();
+              onOpenLuckyBox();
+            }}
           >
-            <span className="event-icon">🎁</span>
+            <span className="event-icon">{isLuckyBoxPlayable ? '🎁' : '🔒'}</span>
             <div className="event-text">
               <strong>럭키 뽑기 상자</strong>
-              <span className="badge-count">2D 도전</span>
+              <span className="badge-count">
+                {!gameConfig.isLuckyBoxEnabled
+                  ? '선생님 승인 대기 중'
+                  : luckyBoxSpinsLeft > 0
+                  ? `남은 기회: ${luckyBoxSpinsLeft}회`
+                  : '기회 소진 (0회)'}
+              </span>
             </div>
           </button>
         </div>
@@ -101,16 +149,6 @@ export const StudentView = ({
         </button>
       </div>
 
-      {/* Badges Bar */}
-      <div className="badges-bar">
-        <span className="badges-label">🎖️ 획득 뱃지:</span>
-        <div className="badges-list">
-          {student.badges.map((b, idx) => (
-            <span key={idx} className="badge-pill">{b}</span>
-          ))}
-        </div>
-      </div>
-
       {/* Market Items & History Toggle Tab */}
       <div className="market-section">
         <div className="section-tabs">
@@ -118,7 +156,7 @@ export const StudentView = ({
             className={`tab-btn ${!showHistory ? 'active' : ''}`}
             onClick={() => setShowHistory(false)}
           >
-            <ShoppingBag size={18} /> Dallar Market 물품 ({items.length})
+            📖 오늘의 말씀
           </button>
           <button
             className={`tab-btn ${showHistory ? 'active' : ''}`}
@@ -129,41 +167,37 @@ export const StudentView = ({
         </div>
 
         {!showHistory ? (
-          /* Items Grid */
-          <div className="items-grid">
-            {items.map((item) => (
-              <div key={item.id} className="item-card glow-subtle">
-                <div className="item-badge">{item.badge || 'POPULAR'}</div>
-                <div className="item-icon-wrapper">{item.icon}</div>
-                <h3 className="item-name">{item.name}</h3>
-                <p className="item-desc">{item.description}</p>
-
-                <div className="item-footer">
-                  <span className="price-tag">{item.price} DALLAR</span>
-                  <button
-                    className="buy-btn"
-                    onClick={() => { playClickSound(); onSelectItemToBuy(item); }}
-                  >
-                    구매
-                  </button>
-                </div>
-              </div>
-            ))}
+          /* Bible Verses Section */
+          <div className="bible-verses-section">
+            <div className="verse-card glow-subtle">
+              <p className="verse-text">
+                "천국은 마치 밭에 감추인 보화와 같으니 사람이 이를 발견한 후 숨겨 두고 기뻐하며 돌아가서 자기의 소유를 다 팔아 그 밭을 사느니라"
+              </p>
+              <p className="verse-ref">- 마태복음 13:44 -</p>
+            </div>
+            <div className="verse-card glow-subtle">
+              <p className="verse-text">
+                "그 때에 천국은 마치 등을 들고 신랑을 맞으러 나간 열 처녀와 같다 하리니"
+              </p>
+              <p className="verse-ref">- 마태복음 25:1 -</p>
+            </div>
           </div>
         ) : (
-          /* Purchase History List */
+          /* Receipt Purchase History List */
           <div className="history-list">
             {history.length === 0 ? (
-              <p className="empty-msg">아직 구매 내역이 없습니다. QR을 스캔해 물품을 사보세요!</p>
+              <div className="empty-history">
+                <p>아직 구매한 물품이 없습니다.</p>
+                <small>선생님 QR을 스캔하여 달란트로 물품을 구매해보세요!</small>
+              </div>
             ) : (
-              history.map((rec, idx) => (
-                <div key={idx} className="history-card">
-                  <div className="h-icon">{rec.icon || '🛍️'}</div>
+              history.map((record, idx) => (
+                <div key={idx} className="history-item-card">
                   <div className="h-info">
-                    <h4>{rec.name}</h4>
-                    <span className="h-time">{rec.timestamp}</span>
+                    <span className="h-name">{record.name}</span>
+                    <span className="h-time">{record.timestamp}</span>
                   </div>
-                  <span className="h-price">-{rec.price} D</span>
+                  <span className="h-price">-{record.price} DALLAR</span>
                 </div>
               ))
             )}

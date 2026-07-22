@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python FastAPI & Local Data Storage Defensive Shield
+backend/venv/
+backend/__pycache__/
+backend/data/storage/
+*.pyc
+

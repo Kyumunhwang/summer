@@ -49,8 +49,7 @@ export const ReceiptModal = ({ isOpen, onClose, item, studentPoints, onConfirmPu
           /* Payment Confirmation View */
           <div className="checkout-confirm-box">
             <div className="temu-badge-flash">🛒 구매 확인</div>
-            <div className="item-hero-icon">{item.icon || '🎁'}</div>
-            <h2 className="item-title">{item.name}</h2>
+            <h2 className="item-title" style={{ marginTop: '16px' }}>{item.name}</h2>
             <p className="item-desc">{item.description}</p>
 
             <div className="price-tag-big">
@@ -107,7 +106,6 @@ export const ReceiptModal = ({ isOpen, onClose, item, studentPoints, onConfirmPu
 
               <div className="receipt-body">
                 <div className="receipt-item-info">
-                  <span className="r-icon">{item.icon}</span>
                   <div>
                     <h4>{item.name}</h4>
                     <span className="r-qty">수량: 1개</span>

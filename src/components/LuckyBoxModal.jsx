@@ -1,28 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { playClickSound, playFanfareSound, playCoinSound } from '../utils/sound';
-import { Gift, Sparkles, X, Trophy } from 'lucide-react';
-
-const REWARDS = [
-  { label: '5 달란트', points: 5, icon: '🪙' },
-  { label: '15 달란트', points: 15, icon: '💰' },
-  { label: '30 달란트 대박!', points: 30, icon: '🔥' },
-  { label: '50 달란트 잭팟!', points: 50, icon: '👑' },
-];
+import { playClickSound, playFanfareSound, playCoinSound, playErrorSound } from '../utils/sound';
+import { Gift, Sparkles, X, Trophy, Coins } from 'lucide-react';
 
 export const LuckyBoxModal = ({ isOpen, onClose, userPoints, onOpenBox }) => {
+  const [selectedBet, setSelectedBet] = useState(5); // Default 5 Dallar bet
   const [opening, setOpening] = useState(false);
   const [openedIndex, setOpenedIndex] = useState(null);
-  const [reward, setReward] = useState(null);
+  const [outcome, setOutcome] = useState(null); // { isWin: boolean, payout: number }
+
+  // Reset modal state every time it opens or closes
+  useEffect(() => {
+    setOpening(false);
+    setOpenedIndex(null);
+    setOutcome(null);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const cost = 2; // 2 달란트로 럭키박스 도전
+  const betOptions = [5, 6, 7, 8, 9, 10];
+
+  const handleClose = () => {
+    playClickSound();
+    setOpening(false);
+    setOpenedIndex(null);
+    setOutcome(null);
+    onClose();
+  };
 
   const handleSelectBox = (index) => {
     if (opening || openedIndex !== null) return;
-    if (userPoints < cost) {
-      alert('달란트가 부족합니다! (2 달란트 필요)');
+    if (userPoints < selectedBet) {
+      alert(`보유 달란트가 부족합니다! (필요: ${selectedBet}D, 현재: ${userPoints}D)`);
       return;
     }
 
@@ -30,26 +39,23 @@ export const LuckyBoxModal = ({ isOpen, onClose, userPoints, onOpenBox }) => {
     setOpening(true);
     setOpenedIndex(index);
 
-    // Random reward calculation
+    // 8% chance to pick the 2x box, 92% chance for 0D lose box
+    const isWin = Math.random() < 0.08;
+    const payout = isWin ? selectedBet * 2 : 0;
+
     setTimeout(() => {
-      const selectedReward = REWARDS[Math.floor(Math.random() * REWARDS.length)];
-      setReward(selectedReward);
+      setOutcome({ isWin, payout });
       setOpening(false);
 
-      if (selectedReward.points >= 30) {
+      if (isWin) {
         playFanfareSound();
+        confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
       } else {
-        playCoinSound();
+        playErrorSound();
       }
 
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
-
       if (onOpenBox) {
-        onOpenBox(cost, selectedReward.points);
+        onOpenBox(selectedBet, payout);
       }
     }, 1200);
   };
@@ -57,29 +63,50 @@ export const LuckyBoxModal = ({ isOpen, onClose, userPoints, onOpenBox }) => {
   return (
     <div className="modal-overlay">
       <div className="lucky-box-card glow-gold">
-        <button className="close-btn" onClick={() => { playClickSound(); onClose(); }}>
+        <button className="close-btn" onClick={handleClose}>
           <X size={24} />
         </button>
 
+        {/* Header Banner */}
         <div className="temu-header">
-          <div className="temu-badge-flash">🎁 2 달란트 행운의 박스</div>
+          <div className="temu-badge-flash pulse">🎁 5~10D 베팅 럭키 박스</div>
           <h2>LUCKY GACHA BOX</h2>
-          <p>상자 하나를 골라 터치해보세요! 100% 보너스 당첨!</p>
+          <p>상자 3개 중 1개는 2배 대박! 2개는 0달란트(소멸)</p>
         </div>
 
+        {/* Bet Selection Selector */}
+        <div className="bet-selector-section">
+          <span className="bet-label"><Coins size={16} /> 베팅할 달란트 선택:</span>
+          <div className="bet-chips">
+            {betOptions.map((amount) => (
+              <button
+                key={amount}
+                className={`bet-chip ${selectedBet === amount ? 'selected' : ''}`}
+                disabled={opening || openedIndex !== null}
+                onClick={() => { playClickSound(); setSelectedBet(amount); }}
+              >
+                {amount}D
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 3 Gacha Boxes Grid */}
         <div className="boxes-grid">
           {[0, 1, 2].map((idx) => {
             const isThisOpened = openedIndex === idx;
             return (
               <div
                 key={idx}
-                className={`gacha-box ${opening && isThisOpened ? 'box-shake' : ''} ${isThisOpened && reward ? 'opened' : ''}`}
+                className={`gacha-box ${opening && isThisOpened ? 'box-shake' : ''} ${isThisOpened && outcome ? 'opened' : ''}`}
                 onClick={() => handleSelectBox(idx)}
               >
-                {isThisOpened && reward ? (
+                {isThisOpened && outcome ? (
                   <div className="opened-reward animate-pop">
-                    <span className="reward-icon">{reward.icon}</span>
-                    <span className="reward-label">{reward.label}</span>
+                    <span className="reward-icon">{outcome.isWin ? '👑' : '💸'}</span>
+                    <span className="reward-label">
+                      {outcome.isWin ? `2배 대박!\n(+${outcome.payout}D)` : '0달란트\n(소멸)'}
+                    </span>
                   </div>
                 ) : (
                   <div className="unopened-box">
@@ -92,12 +119,24 @@ export const LuckyBoxModal = ({ isOpen, onClose, userPoints, onOpenBox }) => {
           })}
         </div>
 
-        {reward && (
-          <div className="win-banner animate-bounce-in">
-            <p>🎉 축하합니다! <strong>+{reward.points} 달란트</strong>를 얻었습니다!</p>
-            <button className="claim-btn" onClick={() => { playClickSound(); onClose(); }}>
-              내 지갑에 넣기
-            </button>
+        {/* Won / Lose Result Banner */}
+        {outcome && (
+          <div className={`win-banner animate-bounce-in ${outcome.isWin ? 'double' : 'lose'}`}>
+            {outcome.isWin ? (
+              <>
+                <p>🎉 2배 대박 당첨! <strong>+{outcome.payout} 달란트</strong>를 획득했습니다!</p>
+                <button className="claim-btn" onClick={handleClose}>
+                  지갑에 넣기
+                </button>
+              </>
+            ) : (
+              <>
+                <p>💸 아쉽게도 0달란트(꽝)! 베팅한 <strong>{selectedBet} 달란트</strong>가 소멸되었습니다.</p>
+                <button className="claim-btn" onClick={handleClose}>
+                  확인
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
