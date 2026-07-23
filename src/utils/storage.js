@@ -1,46 +1,52 @@
 // LocalStorage & QR Code Data Management for Standalone Web
 
 const STUDENT_STORAGE_KEY = 'STAMP_MARKET_STUDENT_V1';
-const TEACHER_ITEMS_KEY = 'STAMP_MARKET_ITEMS_V4';
+const TEACHER_ITEMS_KEY = 'STAMP_MARKET_ITEMS_V5';
 const HISTORY_STORAGE_KEY = 'STAMP_MARKET_HISTORY_V1';
 
 // Default Sample Items created for Summer School Funday (Name, Price, Stock Only)
 const DEFAULT_ITEMS = [
   {
     id: 'item_1',
-    name: '프리미엄 아이스크림',
-    price: 10,
-    stock: 30
+    name: '과자',
+    price: 25,
+    stock: 99
   },
   {
     id: 'item_2',
-    name: '시원한 과일 에이드',
-    price: 15,
-    stock: 25
+    name: '샤프',
+    price: 40,
+    stock: 12
   },
   {
     id: 'item_3',
-    name: '럭키 장난감 세트',
-    price: 30,
-    stock: 15
+    name: '소세지',
+    price: 15,
+    stock: 66
   },
   {
     id: 'item_4',
-    name: '스페셜 캐릭터 문구 세트',
-    price: 25,
-    stock: 20
+    name: '젤리',
+    price: 15,
+    stock: 30
   },
   {
     id: 'item_5',
-    name: '팝콘 & 츄러스 콤보',
+    name: '음료수',
     price: 20,
-    stock: 40
+    stock: 24
   },
   {
     id: 'item_6',
-    name: '선생님과의 VIP 스페셜 쿠폰',
-    price: 50,
-    stock: 5
+    name: '노트',
+    price: 40,
+    stock: 12
+  },
+  {
+    id: 'item_7',
+    name: '문화상품권(경매)',
+    price: 150,
+    stock: 2
   }
 ];
 
@@ -72,8 +78,24 @@ export const saveStudentData = (student) => {
 
 export const updateStudentPoints = (amount) => {
   const student = getStudentData();
-  student.points = Math.max(0, student.points + amount);
+  student.points = Math.max(0, (student.points || 0) + amount);
   saveStudentData(student);
+
+  if (student.id) {
+    const rawData = localStorage.getItem(STUDENTS_LIST_KEY);
+    if (rawData) {
+      try {
+        const list = JSON.parse(rawData);
+        if (Array.isArray(list)) {
+          const updatedList = list.map((s) =>
+            s.id === student.id ? { ...s, points: student.points } : s
+          );
+          localStorage.setItem(STUDENTS_LIST_KEY, JSON.stringify(updatedList));
+        }
+      } catch (e) {}
+    }
+  }
+
   return student.points;
 };
 
@@ -81,6 +103,22 @@ export const addStudentSpins = (count) => {
   const student = getStudentData();
   student.spinsLeft = Math.max(0, (student.spinsLeft || 0) + count);
   saveStudentData(student);
+
+  if (student.id) {
+    const rawData = localStorage.getItem(STUDENTS_LIST_KEY);
+    if (rawData) {
+      try {
+        const list = JSON.parse(rawData);
+        if (Array.isArray(list)) {
+          const updatedList = list.map((s) =>
+            s.id === student.id ? { ...s, spinsLeft: student.spinsLeft } : s
+          );
+          localStorage.setItem(STUDENTS_LIST_KEY, JSON.stringify(updatedList));
+        }
+      } catch (e) {}
+    }
+  }
+
   return student.spinsLeft;
 };
 
@@ -91,41 +129,41 @@ export const addStudentBoxes = (count) => {
   return student.boxesLeft;
 };
 
-const STUDENTS_LIST_KEY = 'STAMP_MARKET_STUDENTS_LIST_V6';
+const STUDENTS_LIST_KEY = 'STAMP_MARKET_STUDENTS_LIST_V7';
 
 // Generate 30 sample students array with custom credentials (MASTER TRUTH)
 export const generate30SampleStudents = () => {
   const customStudents = [
-    { id: 'student01', password: '1663', name: '김여름', points: 1000 },
-    { id: 'student02', password: '9404', name: '이방학', points: 200 },
-    { id: 'student03', password: '9198', name: '박스탬프', points: 300 },
-    { id: 'student04', password: '2504', name: '최파티', points: 100 },
-    { id: 'student05', password: '6461', name: '정아케', points: 100 },
-    { id: 'student06', password: '9616', name: '강펀데이', points: 100 },
-    { id: 'student07', password: '1440', name: '조썸머', points: 100 },
-    { id: 'student08', password: '9165', name: '윤스쿨', points: 100 },
-    { id: 'student09', password: '1767', name: '장스마트', points: 100 },
-    { id: 'student10', password: '2272', name: '임마켓', points: 100 },
-    { id: 'student11', password: '8556', name: '한열매', points: 100 },
-    { id: 'student12', password: '5682', name: '오행복', points: 100 },
-    { id: 'student13', password: '8605', name: '서사랑', points: 100 },
-    { id: 'student14', password: '8339', name: '신슬기', points: 100 },
-    { id: 'student15', password: '7180', name: '권지혜', points: 100 },
-    { id: 'student16', password: '4679', name: '황보람', points: 100 },
-    { id: 'student17', password: '6736', name: '송기쁨', points: 100 },
-    { id: 'student18', password: '3880', name: '전하늘', points: 100 },
-    { id: 'student19', password: '1918', name: '홍바다', points: 100 },
-    { id: 'student20', password: '6320', name: '유햇살', points: 100 },
-    { id: 'student21', password: '9926', name: '고은별', points: 100 },
-    { id: 'student22', password: '5456', name: '문아름', points: 100 },
-    { id: 'student23', password: '1623', name: '양다솜', points: 100 },
-    { id: 'student24', password: '1494', name: '손미소', points: 100 },
-    { id: 'student25', password: '5983', name: '배기찬', points: 100 },
-    { id: 'student26', password: '3343', name: '조희망', points: 100 },
-    { id: 'student27', password: '2598', name: '백드림', points: 100 },
-    { id: 'student28', password: '9204', name: '허으뜸', points: 100 },
-    { id: 'student29', password: '2827', name: '유찬란', points: 100 },
-    { id: 'student30', password: '9557', name: '남누리', points: 100 }
+    { id: 'student01', password: '1663', name: 'Choi, Seungjae E5', points: 115 },
+    { id: 'student02', password: '9404', name: 'Han, Yena E5', points: 348 },
+    { id: 'student03', password: '9198', name: 'Kang, Sechan E5', points: 317 },
+    { id: 'student04', password: '2504', name: 'Lee, David (이지율) E5', points: 334 },
+    { id: 'student05', password: '6461', name: 'Lee, Eden E5', points: 372 },
+    { id: 'student06', password: '9616', name: 'Lee, Juho E5', points: 295 },
+    { id: 'student07', password: '1440', name: 'Lee, Siwoo E5', points: 238 },
+    { id: 'student08', password: '9165', name: 'Lee, Tay E5', points: 281 },
+    { id: 'student09', password: '1767', name: 'Oh, Pyeongan E5', points: 304 },
+    { id: 'student10', password: '2272', name: 'Kang, Dongho M6', points: 213 },
+    { id: 'student11', password: '8556', name: 'Kim, Dayeon M6', points: 291 },
+    { id: 'student12', password: '5682', name: 'Kim, Yigeon M6', points: 270 },
+    { id: 'student13', password: '8605', name: 'Lee, Sangwoo M6', points: 321 },
+    { id: 'student14', password: '8339', name: 'Park, Habin M6', points: 261 },
+    { id: 'student15', password: '7180', name: 'Ryu, Hayeon M6', points: 280 },
+    { id: 'student16', password: '4679', name: 'Yang, Sion M6', points: 201 },
+    { id: 'student17', password: '6736', name: 'Yoon, Lael M6', points: 228 },
+    { id: 'student18', password: '3880', name: 'Yun, Keonwoo M6', points: 125 },
+    { id: 'student19', password: '1918', name: 'Jeong, Raon M7', points: 137 },
+    { id: 'student20', password: '6320', name: 'Oh, Sion M7', points: 210 },
+    { id: 'student21', password: '9926', name: 'Park, Haon M7', points: 235 },
+    { id: 'student22', password: '5456', name: 'Shin, Hajun M7', points: 30 },
+    { id: 'student23', password: '1623', name: 'Song, Sangyun M7', points: 135 },
+    { id: 'student24', password: '1494', name: 'Yoo, Hajoon M7', points: 149 },
+    { id: 'student25', password: '5983', name: 'Yoon, Seokhyeon M7', points: 177 },
+    { id: 'student26', password: '3343', name: 'Kim, Riwon M8', points: 286 },
+    { id: 'student27', password: '2598', name: 'Lee, Heeel M8', points: 117 },
+    { id: 'student28', password: '9204', name: 'Song, Yuvin M8', points: 324 },
+    { id: 'student29', password: '2827', name: '황규문', points: 1000 },
+    { id: 'student30', password: '9557', name: '이재원', points: 1000 }
   ];
 
   return customStudents.map((s, i) => ({
@@ -149,11 +187,11 @@ export const getStudentsList = () => {
       return masterDefaults;
     }
 
-    // Force override ID, password, name AND points from masterDefaults
     const merged = masterDefaults.map((master) => {
       const match = saved.find((s) => s.id === master.id);
       return {
         ...master,
+        points: (match && typeof match.points === 'number') ? match.points : master.points,
         spinsLeft: (match && typeof match.spinsLeft === 'number') ? match.spinsLeft : master.spinsLeft
       };
     });
@@ -174,7 +212,8 @@ export const downloadSampleCSV = () => {
   const students = getStudentsList();
   let csvContent = 'ID,Password,Name,Points\n';
   students.forEach((s) => {
-    csvContent += `${s.id},${s.password},${s.name},${s.points}\n`;
+    const formattedName = s.name.includes(',') ? `"${s.name}"` : s.name;
+    csvContent += `${s.id},${s.password},${formattedName},${s.points}\n`;
   });
 
   const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -204,12 +243,28 @@ export const parseCSVAndSaveStudents = (csvText) => {
       continue;
     }
 
-    const parts = line.split(',');
-    if (parts.length >= 3) {
-      const id = parts[0].trim().replace(/^"/, '').replace(/"$/, '');
-      const password = parts[1].trim().replace(/^"/, '').replace(/"$/, '');
-      const name = parts[2].trim().replace(/^"/, '').replace(/"$/, '');
-      const points = parseInt(parts[3] ? parts[3].trim().replace(/^"/, '').replace(/"$/, '') : '100', 10) || 100;
+    const parts = [];
+    let current = '';
+    let inQuotes = false;
+    for (let j = 0; j < line.length; j++) {
+      const char = line[j];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        parts.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    parts.push(current.trim());
+    const cleanedParts = parts.map(p => p.replace(/^"/, '').replace(/"$/, '').trim());
+
+    if (cleanedParts.length >= 3) {
+      const id = cleanedParts[0];
+      const password = cleanedParts[1];
+      const name = cleanedParts[2];
+      const points = parseInt(cleanedParts[3] || '100', 10) || 100;
 
       students.push({
         id: id || `student${String(students.length + 1).padStart(2, '0')}`,

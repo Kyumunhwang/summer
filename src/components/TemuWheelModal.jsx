@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { playSpinSound, playJackpotSound, playFanfareSound, playSadSound, playClickSound } from '../utils/sound';
 import { Sparkles, Trophy, Gift, Zap, X } from 'lucide-react';
@@ -17,19 +17,31 @@ const WHEEL_SECTORS = [
   { label: '꽝! (0S)', value: 0, type: 'lose', color: '#2B2A3E', icon: '💦' }, // 꽝 6
 ];
 
-export const TemuWheelModal = ({ isOpen, onClose, onWin }) => {
+export const TemuWheelModal = ({ isOpen, onClose, onWin, onSpinStart, spinsLeft = 0 }) => {
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [wonPrize, setWonPrize] = useState(null);
   const soundIntervalRef = useRef(null);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setWonPrize(null);
+      setSpinning(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSpin = () => {
-    if (spinning) return;
+    if (spinning || spinsLeft <= 0) return;
     playClickSound();
     setSpinning(true);
     setWonPrize(null);
+
+    // Immediately consume 1 spin ticket
+    if (onSpinStart) {
+      onSpinStart();
+    }
 
     // Random sector selection (0~9)
     const selectedIndex = Math.floor(Math.random() * WHEEL_SECTORS.length);
@@ -81,6 +93,8 @@ export const TemuWheelModal = ({ isOpen, onClose, onWin }) => {
     }, 3600);
   };
 
+  const isSpinDisabled = spinning || spinsLeft <= 0;
+
   return (
     <div className="modal-overlay">
       <div className="temu-wheel-card glow-temu">
@@ -92,7 +106,11 @@ export const TemuWheelModal = ({ isOpen, onClose, onWin }) => {
         <div className="temu-header">
           <div className="temu-badge-flash pulse">⚡ 행운의 룰렛 이벤트</div>
           <h2 className="temu-title">STAMP LUCKY WHEEL</h2>
-          <p className="temu-subtitle">룰렛을 돌리고 행운의 스탬프를 받으세요!</p>
+          <p className="temu-subtitle">
+            {spinsLeft > 0 
+              ? `선생님 승인 완료! (남은 도전 기회: ${spinsLeft}회)` 
+              : '🔒 선생님의 룰렛 승인 QR 스캔이 필요합니다.'}
+          </p>
         </div>
 
         {/* Wheel Display Container */}
@@ -127,11 +145,18 @@ export const TemuWheelModal = ({ isOpen, onClose, onWin }) => {
           </div>
 
           <button
-            className={`spin-trigger-btn ${spinning ? 'disabled' : ''}`}
+            className={`spin-trigger-btn ${isSpinDisabled ? 'disabled' : ''}`}
             onClick={handleSpin}
-            disabled={spinning}
+            disabled={isSpinDisabled}
+            style={isSpinDisabled && !spinning ? {
+              background: 'linear-gradient(180deg, #555 0%, #333 100%)',
+              color: '#888',
+              boxShadow: 'none',
+              cursor: 'not-allowed',
+              fontSize: '0.9rem'
+            } : {}}
           >
-            {spinning ? '돌아가는 중!' : 'SPIN!'}
+            {spinning ? '돌아가는 중!' : spinsLeft > 0 ? `SPIN! (${spinsLeft}회 남음)` : '🔒 선생님 승인 필요'}
           </button>
         </div>
 

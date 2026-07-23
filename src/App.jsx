@@ -68,16 +68,17 @@ export function App() {
     refreshStudent();
   };
 
+  // Handle Spin Start (consume 1 ticket immediately when SPIN is clicked)
+  const handleWheelSpinStart = () => {
+    addStudentSpins(-1);
+    refreshStudent();
+  };
+
   // Handle Temu Wheel Spin Win
   const handleWheelWin = (prize) => {
-    if (prize.type === 'points' || prize.type === 'jackpot') {
+    if (prize && prize.value > 0) {
       updateStudentPoints(prize.value);
-    } else if (prize.type === 'double') {
-      // Double current balance
-      updateStudentPoints(student.points);
     }
-    // Deduct spin ticket
-    addStudentSpins(-1);
     refreshStudent();
   };
 
@@ -112,6 +113,8 @@ export function App() {
         isOpen={isWheelOpen}
         onClose={() => setIsWheelOpen(false)}
         onWin={handleWheelWin}
+        onSpinStart={handleWheelSpinStart}
+        spinsLeft={student.spinsLeft || 0}
       />
 
       {/* Camera QR Scanner Modal */}
