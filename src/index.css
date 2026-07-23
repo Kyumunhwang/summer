@@ -606,6 +606,11 @@ body {
   text-align: center;
 }
 
+.win-banner.lose-banner {
+  background: rgba(255, 50, 50, 0.15);
+  border-color: #FF5555;
+}
+
 .win-banner p {
   font-size: 0.9rem;
   margin-bottom: 10px;

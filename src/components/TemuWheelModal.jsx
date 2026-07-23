@@ -1,15 +1,20 @@
 import React, { useState, useRef } from 'react';
 import confetti from 'canvas-confetti';
-import { playSpinSound, playJackpotSound, playClickSound } from '../utils/sound';
+import { playSpinSound, playJackpotSound, playFanfareSound, playSadSound, playClickSound } from '../utils/sound';
 import { Sparkles, Trophy, Gift, Zap, X } from 'lucide-react';
 
+// 10 Sectors: 10 STAMP (1), 5 STAMP (1), 1 STAMP (2), 0 STAMP/꽝 (6)
 const WHEEL_SECTORS = [
-  { label: '50 달란트', value: 50, type: 'points', color: '#FF3366', icon: '💰' },
-  { label: '20 달란트', value: 20, type: 'points', color: '#FF9900', icon: '🪙' },
-  { label: '100D 잭팟!', value: 100, type: 'jackpot', color: '#9933FF', icon: '👑' },
-  { label: '10 달란트', value: 10, type: 'points', color: '#33CC66', icon: '✨' },
-  { label: '2배 찬스!', value: 'DOUBLE', type: 'double', color: '#FFCC00', icon: '⚡' },
-  { label: '럭키 럭키', value: 30, type: 'points', color: '#00CCFF', icon: '🎁' },
+  { label: '10 STAMP', value: 10, type: 'win', color: '#9933FF', icon: '👑' }, // 10S (1개)
+  { label: '아쉬워요! (0S)', value: 0, type: 'lose', color: '#3A3952', icon: '😭' }, // 꽝 1
+  { label: '1 STAMP', value: 1, type: 'win', color: '#FF9900', icon: '🪙' },  // 1S (1개)
+  { label: '다음 기회에 (0S)', value: 0, type: 'lose', color: '#2B2A3E', icon: '💨' }, // 꽝 2
+  { label: '5 STAMP', value: 5, type: 'win', color: '#FF3366', icon: '💎' },  // 5S (1개)
+  { label: '꽝! (0S)', value: 0, type: 'lose', color: '#3A3952', icon: '😅' }, // 꽝 3
+  { label: '1 STAMP', value: 1, type: 'win', color: '#33CC66', icon: '✨' },  // 1S (2개째)
+  { label: '아쉬워요! (0S)', value: 0, type: 'lose', color: '#2B2A3E', icon: '💔' }, // 꽝 4
+  { label: '다음 기회에 (0S)', value: 0, type: 'lose', color: '#3A3952', icon: '🙈' }, // 꽝 5
+  { label: '꽝! (0S)', value: 0, type: 'lose', color: '#2B2A3E', icon: '💦' }, // 꽝 6
 ];
 
 export const TemuWheelModal = ({ isOpen, onClose, onWin }) => {
@@ -26,7 +31,7 @@ export const TemuWheelModal = ({ isOpen, onClose, onWin }) => {
     setSpinning(true);
     setWonPrize(null);
 
-    // Random sector selection
+    // Random sector selection (0~9)
     const selectedIndex = Math.floor(Math.random() * WHEEL_SECTORS.length);
     const sectorAngle = 360 / WHEEL_SECTORS.length;
     
@@ -53,13 +58,22 @@ export const TemuWheelModal = ({ isOpen, onClose, onWin }) => {
       const prize = WHEEL_SECTORS[selectedIndex];
       setWonPrize(prize);
 
-      // Play Jackpot sound & explosion
-      playJackpotSound();
-      confetti({
-        particleCount: 120,
-        spread: 100,
-        origin: { y: 0.6 }
-      });
+      if (prize.value > 0) {
+        // WIN outcome: Happy sound & Fireworks
+        if (prize.value >= 10) {
+          playJackpotSound();
+        } else {
+          playFanfareSound();
+        }
+        confetti({
+          particleCount: 120,
+          spread: 100,
+          origin: { y: 0.6 }
+        });
+      } else {
+        // LOSE outcome: Sad Bummer Sound
+        playSadSound();
+      }
 
       if (onWin) {
         onWin(prize);
@@ -76,9 +90,9 @@ export const TemuWheelModal = ({ isOpen, onClose, onWin }) => {
 
         {/* Temu Style Banner */}
         <div className="temu-header">
-          <div className="temu-badge-flash pulse">⚡ 100% 당첨 럭키 휠</div>
-          <h2 className="temu-title">TEMU STYLE DALAN SPIN</h2>
-          <p className="temu-subtitle">룰렛을 돌리고 초대박 혜택 달란트를 받으세요!</p>
+          <div className="temu-badge-flash pulse">⚡ 행운의 룰렛 이벤트</div>
+          <h2 className="temu-title">STAMP LUCKY WHEEL</h2>
+          <p className="temu-subtitle">룰렛을 돌리고 행운의 스탬프를 받으세요!</p>
         </div>
 
         {/* Wheel Display Container */}
@@ -121,15 +135,26 @@ export const TemuWheelModal = ({ isOpen, onClose, onWin }) => {
           </button>
         </div>
 
-        {/* Won Prize Popup Modal Banner */}
+        {/* Won/Lost Result Banner */}
         {wonPrize && (
-          <div className="win-banner animate-bounce-in">
-            <div className="win-icon">{wonPrize.icon}</div>
+          <div className={`win-banner animate-bounce-in ${wonPrize.value === 0 ? 'lose-banner' : ''}`}>
+            <div className="win-icon" style={{ fontSize: '36px' }}>{wonPrize.icon}</div>
             <div className="win-info">
-              <h3>축하합니다! 🔥</h3>
-              <p className="win-detail">
-                [{wonPrize.label}] 당첨! 달란트 지갑에 즉시 지급되었습니다.
-              </p>
+              {wonPrize.value > 0 ? (
+                <>
+                  <h3 style={{ color: 'var(--temu-yellow)' }}>🎉 축하합니다! 🔥</h3>
+                  <p className="win-detail">
+                    <strong>+{wonPrize.value} 스탬프</strong> 당첨! 지갑에 추가되었습니다.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3 style={{ color: '#FF6666' }}>😭 아쉬워요! (꽝)</h3>
+                  <p className="win-detail">
+                    아쉽지만 다음 기회에 도전해 보세요!
+                  </p>
+                </>
+              )}
             </div>
             <button
               className="claim-btn"
@@ -138,7 +163,7 @@ export const TemuWheelModal = ({ isOpen, onClose, onWin }) => {
                 onClose();
               }}
             >
-              확인 & 혜택 받기
+              확인
             </button>
           </div>
         )}

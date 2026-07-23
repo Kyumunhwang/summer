@@ -7,21 +7,20 @@ import {
   addPurchaseRecord
 } from './utils/storage';
 import { playCoinSound, playFanfareSound, playJackpotSound } from './utils/sound';
+import { MainLoginScreen } from './components/MainLoginScreen';
 import { StudentView } from './components/StudentView';
 import { TeacherView } from './components/TeacherView';
 import { TemuWheelModal } from './components/TemuWheelModal';
-import { LuckyBoxModal } from './components/LuckyBoxModal';
 import { QRScannerModal } from './components/QRScannerModal';
 import { ReceiptModal } from './components/ReceiptModal';
 import confetti from 'canvas-confetti';
 
 export function App() {
-  const [view, setView] = useState('student'); // 'student' | 'teacher'
+  const [view, setView] = useState('login'); // 'login' | 'student' | 'teacher'
   const [student, setStudent] = useState(getStudentData());
 
   // Modals
   const [isWheelOpen, setIsWheelOpen] = useState(false);
-  const [isLuckyBoxOpen, setIsLuckyBoxOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [selectedItemForPurchase, setSelectedItemForPurchase] = useState(null);
 
@@ -38,21 +37,22 @@ export function App() {
   const handleScanSuccess = (qrObject) => {
     setIsScannerOpen(false);
 
-    if (qrObject.type === 'DALLAR_ITEM') {
+    if (qrObject.type === 'STAMP_ITEM' || qrObject.type === 'DALLAR_ITEM') {
       // Open Purchase Confirmation Receipt modal
       setSelectedItemForPurchase(qrObject);
-    } else if (qrObject.type === 'DALLAR_ADD') {
+    } else if (qrObject.type === 'STAMP_ADD' || qrObject.type === 'DALLAR_ADD') {
       // Add points immediately
       const newBalance = updateStudentPoints(qrObject.points);
       refreshStudent();
       playJackpotSound();
       confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
-      alert(`🎉 [${qrObject.label || '포인트 지급'}] ${qrObject.points} 달란트가 지급되었습니다! (현재 잔액: ${newBalance}D)`);
-    } else if (qrObject.type === 'DALLAR_WHEEL') {
+      alert(`🎉 [${qrObject.label || '스탬프 지급'}] ${qrObject.points} 스탬프가 지급되었습니다! (현재 잔액: ${newBalance} STAMP)`);
+    } else if (qrObject.type === 'STAMP_WHEEL' || qrObject.type === 'DALLAR_WHEEL') {
       // Add wheel ticket & open wheel modal
       addStudentSpins(qrObject.spins || 1);
       refreshStudent();
       playCoinSound();
+      alert('🎉 [선생님 승인] 룰렛 1회 도전권이 승인되었습니다!');
       setIsWheelOpen(true);
     }
   };
@@ -81,26 +81,28 @@ export function App() {
     refreshStudent();
   };
 
-  // Handle Lucky Box Gacha Open
-  const handleLuckyBoxOpen = (cost, wonPoints) => {
-    updateStudentPoints(-cost + wonPoints);
-    refreshStudent();
-  };
-
   return (
     <div className="app-root">
-      {view === 'student' ? (
+      {view === 'login' ? (
+        <MainLoginScreen
+          onStudentLoginSuccess={(loggedStudent) => {
+            setStudent(loggedStudent);
+            setView('student');
+          }}
+          onTeacherLoginSuccess={() => {
+            setView('teacher');
+          }}
+        />
+      ) : view === 'student' ? (
         <StudentView
           student={student}
           onOpenScanner={() => setIsScannerOpen(true)}
           onOpenWheel={() => setIsWheelOpen(true)}
-          onOpenLuckyBox={() => setIsLuckyBoxOpen(true)}
-          onSelectItemToBuy={(item) => setSelectedItemForPurchase(item)}
-          onSwitchToTeacher={() => setView('teacher')}
+          onLogout={() => setView('login')}
         />
       ) : (
         <TeacherView
-          onBackToStudent={() => setView('student')}
+          onBackToStudent={() => setView('login')}
           onDataChange={refreshStudent}
         />
       )}
@@ -110,14 +112,6 @@ export function App() {
         isOpen={isWheelOpen}
         onClose={() => setIsWheelOpen(false)}
         onWin={handleWheelWin}
-      />
-
-      {/* Lucky Box Gacha Modal */}
-      <LuckyBoxModal
-        isOpen={isLuckyBoxOpen}
-        onClose={() => setIsLuckyBoxOpen(false)}
-        userPoints={student.points}
-        onOpenBox={handleLuckyBoxOpen}
       />
 
       {/* Camera QR Scanner Modal */}

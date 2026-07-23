@@ -189,6 +189,40 @@ export const playErrorSound = () => {
   }
 };
 
+// Play Sad Bummer Sound (When losing 0 Dallar)
+export const playSadSound = () => {
+  if (!soundEnabled) return;
+  try {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+
+    // Sad descending tones (Sad Trombone effect)
+    const notes = [300, 280, 260, 220];
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.15);
+      if (idx === notes.length - 1) {
+        // Drop pitch on last note
+        osc.frequency.linearRampToValueAtTime(150, now + idx * 0.15 + 0.4);
+      }
+
+      gain.gain.setValueAtTime(0.2, now + idx * 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.15 + (idx === notes.length - 1 ? 0.45 : 0.18));
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now + idx * 0.15);
+      osc.stop(now + idx * 0.15 + (idx === notes.length - 1 ? 0.45 : 0.18));
+    });
+  } catch (e) {
+    console.warn('Audio error:', e);
+  }
+};
+
 // Play Button Click Sound
 export const playClickSound = () => {
   if (!soundEnabled) return;

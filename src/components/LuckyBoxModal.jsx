@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { playClickSound, playFanfareSound, playCoinSound } from '../utils/sound';
 import { Gift, Sparkles, X, Trophy } from 'lucide-react';
@@ -15,16 +15,26 @@ export const LuckyBoxModal = ({ isOpen, onClose, userPoints, onOpenBox }) => {
   const [openedIndex, setOpenedIndex] = useState(null);
   const [reward, setReward] = useState(null);
 
+  useEffect(() => {
+    if (isOpen) {
+      setOpenedIndex(null);
+      setReward(null);
+      setOpening(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  const cost = 2; // 2 달란트로 럭키박스 도전
+  const handleClose = () => {
+    playClickSound();
+    setOpenedIndex(null);
+    setReward(null);
+    setOpening(false);
+    onClose();
+  };
 
   const handleSelectBox = (index) => {
     if (opening || openedIndex !== null) return;
-    if (userPoints < cost) {
-      alert('달란트가 부족합니다! (2 달란트 필요)');
-      return;
-    }
 
     playClickSound();
     setOpening(true);
@@ -49,7 +59,7 @@ export const LuckyBoxModal = ({ isOpen, onClose, userPoints, onOpenBox }) => {
       });
 
       if (onOpenBox) {
-        onOpenBox(cost, selectedReward.points);
+        onOpenBox(selectedReward.points);
       }
     }, 1200);
   };
@@ -57,12 +67,12 @@ export const LuckyBoxModal = ({ isOpen, onClose, userPoints, onOpenBox }) => {
   return (
     <div className="modal-overlay">
       <div className="lucky-box-card glow-gold">
-        <button className="close-btn" onClick={() => { playClickSound(); onClose(); }}>
+        <button className="close-btn" onClick={handleClose}>
           <X size={24} />
         </button>
 
         <div className="temu-header">
-          <div className="temu-badge-flash">🎁 2 달란트 행운의 박스</div>
+          <div className="temu-badge-flash">🎁 100% 당첨 럭키 상자</div>
           <h2>LUCKY GACHA BOX</h2>
           <p>상자 하나를 골라 터치해보세요! 100% 보너스 당첨!</p>
         </div>
@@ -95,7 +105,7 @@ export const LuckyBoxModal = ({ isOpen, onClose, userPoints, onOpenBox }) => {
         {reward && (
           <div className="win-banner animate-bounce-in">
             <p>🎉 축하합니다! <strong>+{reward.points} 달란트</strong>를 얻었습니다!</p>
-            <button className="claim-btn" onClick={() => { playClickSound(); onClose(); }}>
+            <button className="claim-btn" onClick={handleClose}>
               내 지갑에 넣기
             </button>
           </div>

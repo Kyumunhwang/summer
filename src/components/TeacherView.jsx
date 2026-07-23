@@ -7,22 +7,28 @@ import {
   encodeItemQR,
   encodePointQR,
   encodeWheelQR,
+  encodeBoxQR,
+  addStudentSpins,
+  addStudentBoxes,
+  downloadSampleCSV,
+  parseCSVAndSaveStudents,
+  getStudentsList,
+  downloadItemsSampleCSV,
+  parseCSVAndSaveItems,
   resetAllData
 } from '../utils/storage';
 import { playClickSound, playCoinSound } from '../utils/sound';
-import { PlusCircle, Trash2, QrCode, Sparkles, RefreshCw, Gift, ShieldAlert, Award } from 'lucide-react';
+import { PlusCircle, Trash2, QrCode, Sparkles, RefreshCw, Gift, ShieldAlert, Award, CheckCircle } from 'lucide-react';
 
 export const TeacherView = ({ onBackToStudent, onDataChange }) => {
   const [items, setItems] = useState(getTeacherItems());
+  const [studentsRoster, setStudentsRoster] = useState(getStudentsList());
   const [activeQRModal, setActiveQRModal] = useState(null); // { title, qrData, icon }
+  const [inlineQR, setInlineQR] = useState(null); // Inline QR displayed only when button clicked
 
   // Form State
   const [newItemName, setNewItemName] = useState('');
   const [newItemPrice, setNewItemPrice] = useState(10);
-  const [newItemIcon, setNewItemIcon] = useState('🎁');
-  const [newItemDesc, setNewItemDesc] = useState('');
-
-  const iconsList = ['🍦', '🥤', '🍿', '🧸', '🎨', '👑', '🎟️', '🍔', '🎁', '⚽', '🎮', '🍉'];
 
   const handleCreateItem = (e) => {
     e.preventDefault();
@@ -32,16 +38,12 @@ export const TeacherView = ({ onBackToStudent, onDataChange }) => {
     const updated = addTeacherItem({
       name: newItemName,
       price: parseInt(newItemPrice, 10),
-      icon: newItemIcon,
-      description: newItemDesc || 'Summer School Special Item',
-      stock: 20,
-      badge: 'NEW'
+      stock: 20
     });
 
     setItems(updated);
     setNewItemName('');
     setNewItemPrice(10);
-    setNewItemDesc('');
     if (onDataChange) onDataChange();
   };
 
@@ -58,27 +60,28 @@ export const TeacherView = ({ onBackToStudent, onDataChange }) => {
     playClickSound();
     setActiveQRModal({
       title: `[물품 QR] ${item.name}`,
-      subtitle: `가격: ${item.price} 달란트`,
+      subtitle: `가격: ${item.price} 스탬프`,
       qrData: encodeItemQR(item),
-      icon: item.icon
+      icon: '🎁'
     });
   };
 
   const showRewardPointQR = (amount) => {
     playClickSound();
     setActiveQRModal({
-      title: `🌟 칭찬 ${amount} 달란트 지급 QR`,
-      subtitle: '학생이 스캔하면 달란트가 즉시 지급됩니다!',
-      qrData: encodePointQR(amount, `${amount} 달란트 칭찬 쿠폰`),
+      title: `🌟 칭찬 ${amount} 스탬프 지급 QR`,
+      subtitle: '학생이 스캔하면 스탬프가 즉시 지급됩니다!',
+      qrData: encodePointQR(amount, `${amount} 스탬프 칭찬 쿠폰`),
       icon: '💰'
     });
   };
 
-  const showWheelQR = () => {
+  const setInlineWheelQR = () => {
     playClickSound();
-    setActiveQRModal({
-      title: `🎡 Temu 럭키 룰렛 티켓 QR`,
-      subtitle: '학생이 스캔하면 100% 당첨 룰렛이 실행됩니다!',
+    setInlineQR({
+      type: 'WHEEL',
+      title: '🎡 룰렛 +1회 도전 승인 QR',
+      subtitle: '이 QR 코드를 스캔한 학생에게만 룰렛 1회 도전권이 승인됩니다!',
       qrData: encodeWheelQR(1),
       icon: '🎰'
     });
@@ -101,7 +104,7 @@ export const TeacherView = ({ onBackToStudent, onDataChange }) => {
           <Award className="t-logo-icon" size={28} />
           <div>
             <h2>TEACHER ADMIN PANEL</h2>
-            <p>Dallar Market 물품 관리 및 포인트 QR 생성기</p>
+            <p>STAMP Market 물품 관리 및 스탬프 QR 생성기</p>
           </div>
         </div>
 
@@ -113,45 +116,240 @@ export const TeacherView = ({ onBackToStudent, onDataChange }) => {
       <div className="teacher-grid">
         {/* Quick Point & Wheel QR Generators */}
         <div className="admin-card quick-qr-section">
-          <h3>⚡ 현장 포인트 & 룰렛 지급 QR 생성기</h3>
-          <p className="card-sub">미션을 완료한 학생들에게 아래 QR 코드를 화면으로 보여주세요!</p>
+          <h3>⚡ 100% 당첨 룰렛 실시간 승인 QR 생성기</h3>
+          <p className="card-sub">아래 버튼을 누르면 룰렛 승인 QR 코드가 생성되며, 스캔한 학생만 1회 도전할 수 있습니다!</p>
 
-          <div className="quick-qr-buttons">
-            <button className="q-btn green" onClick={() => showRewardPointQR(20)}>
-              💰 20 달란트 지급 QR
+          <div className="instant-grant-row" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            <button
+              className="instant-grant-btn active"
+              onClick={setInlineWheelQR}
+              style={{
+                flex: 1,
+                padding: '14px',
+                background: 'var(--temu-red)',
+                border: '2px solid var(--temu-yellow)',
+                color: 'white',
+                borderRadius: '14px',
+                fontWeight: '900',
+                cursor: 'pointer',
+                fontSize: '1rem'
+              }}
+            >
+              ⚡ 룰렛 +1회 승인 QR 코드 생성하기
             </button>
-            <button className="q-btn gold" onClick={() => showRewardPointQR(50)}>
-              🔥 50 달란트 지급 QR
+          </div>
+
+          {/* Inline Live QR Code Box (Displayed right below the buttons) */}
+          {inlineQR && (
+            <div
+              className="inline-qr-display-box animate-pop"
+              style={{
+                background: '#FFFFFF',
+                color: '#111111',
+                padding: '18px',
+                borderRadius: '20px',
+                textAlign: 'center',
+                marginBottom: '16px',
+                boxShadow: '0 8px 25px rgba(255, 199, 0, 0.3)',
+                border: '3px solid var(--temu-yellow)'
+              }}
+            >
+              <div style={{ fontSize: '32px', marginBottom: '4px' }}>{inlineQR.icon}</div>
+              <h4 style={{ fontSize: '1.1rem', fontWeight: '900', color: '#111' }}>{inlineQR.title}</h4>
+              <p style={{ fontSize: '0.8rem', color: '#555', marginBottom: '12px' }}>{inlineQR.subtitle}</p>
+
+              <div style={{ display: 'inline-block', padding: '10px', background: '#FFF', borderRadius: '12px', border: '1px solid #EEE' }}>
+                <QRCodeSVG
+                  value={inlineQR.qrData}
+                  size={210}
+                  bgColor={'#ffffff'}
+                  fgColor={'#111111'}
+                  level={'H'}
+                  includeMargin={true}
+                />
+              </div>
+
+              <p style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--temu-red)', marginTop: '8px' }}>
+                📱 학생 휴대폰 카메라로 위 QR 코드를 스캔하세요!
+              </p>
+            </div>
+          )}
+
+          <div className="quick-qr-buttons" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <button className="q-btn green" onClick={() => showRewardPointQR(1)}>
+              🪙 1 스탬프 지급 QR
             </button>
-            <button className="q-btn purple" onClick={() => showRewardPointQR(100)}>
-              👑 100 달란트 잭팟 QR
+            <button className="q-btn gold" onClick={() => showRewardPointQR(2)}>
+              🪙 2 스탬프 지급 QR
             </button>
-            <button className="q-btn temu-red" onClick={showWheelQR}>
-              🎡 Temu 럭키 룰렛 티켓 QR
+            <button className="q-btn purple" onClick={() => showRewardPointQR(5)}>
+              💰 5 스탬프 지급 QR
             </button>
+            <button className="q-btn temu-red" onClick={() => showRewardPointQR(10)}>
+              🔥 10 스탬프 지급 QR
+            </button>
+          </div>
+        </div>
+
+        {/* CSV Student Roster Management Section */}
+        <div className="admin-card csv-management-section">
+          <h3>👨‍🎓 30명 학생 명단 & CSV 관리</h3>
+          <p className="card-sub">학생 ID/비밀번호/이름 양식 CSV를 다운로드받거나 새로운 명단 CSV를 업로드하세요!</p>
+
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <button
+              onClick={downloadSampleCSV}
+              style={{
+                flex: 1,
+                padding: '12px 16px',
+                background: 'var(--gold-gradient)',
+                color: '#111',
+                border: 'none',
+                borderRadius: '12px',
+                fontWeight: '900',
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              📥 30명 학생 명단 CSV 양식 다운로드
+            </button>
+
+            <label
+              style={{
+                flex: 1,
+                padding: '12px 16px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1.5px dashed var(--temu-yellow)',
+                color: 'var(--temu-yellow)',
+                borderRadius: '12px',
+                fontWeight: '800',
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                textAlign: 'center'
+              }}
+            >
+              📤 학생 명단 CSV 파일 업로드
+              <input
+                type="file"
+                accept=".csv"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                      const result = parseCSVAndSaveStudents(evt.target.result);
+                      if (result) {
+                        setStudentsRoster(result);
+                        if (onDataChange) onDataChange();
+                        alert(`🎉 성공! ${result.length}명의 학생 명단이 새로 적용되었습니다!`);
+                      } else {
+                        alert('CSV 파일 형식을 확인해주세요. (ID,Password,Name,Points)');
+                      }
+                    };
+                    reader.readAsText(file, 'UTF-8');
+                  }
+                }}
+              />
+            </label>
+          </div>
+
+          <div className="student-roster-preview" style={{ maxHeight: '180px', overflowY: 'auto', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', padding: '10px' }}>
+            <table style={{ width: '100%', fontSize: '0.75rem', textAlign: 'left', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.2)', color: 'var(--temu-yellow)' }}>
+                  <th style={{ padding: '4px' }}>ID</th>
+                  <th style={{ padding: '4px' }}>PW(PIN)</th>
+                  <th style={{ padding: '4px' }}>이름</th>
+                  <th style={{ padding: '4px' }}>스탬프</th>
+                </tr>
+              </thead>
+              <tbody>
+                {studentsRoster.map((s) => (
+                  <tr key={s.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <td style={{ padding: '4px', fontWeight: '700' }}>{s.id}</td>
+                    <td style={{ padding: '4px', color: '#AAA' }}>{s.password}</td>
+                    <td style={{ padding: '4px' }}>{s.name}</td>
+                    <td style={{ padding: '4px', color: 'var(--temu-yellow)', fontWeight: '800' }}>{s.points} STAMP</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
         {/* New Item Registration Form */}
         <div className="admin-card add-item-section">
-          <h3>➕ 신규 판매 물품 등록</h3>
+          <h3>➕ 신규 판매 물품 등록 & CSV 일괄 관리</h3>
+          <p className="card-sub">물품을 직접 등록하거나, CSV 파일로 한번에 일괄 등록하세요! (자동으로 QR 코드가 100% 즉시 생성됩니다)</p>
+
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={downloadItemsSampleCSV}
+              style={{
+                flex: 1,
+                padding: '12px 14px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1.5px solid var(--temu-yellow)',
+                color: 'var(--temu-yellow)',
+                borderRadius: '12px',
+                fontWeight: '800',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              📥 물품 목록 CSV 양식 다운로드
+            </button>
+
+            <label
+              style={{
+                flex: 1,
+                padding: '12px 14px',
+                background: 'var(--temu-gradient)',
+                color: 'white',
+                borderRadius: '12px',
+                fontWeight: '900',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                textAlign: 'center'
+              }}
+            >
+              📤 물품 목록 CSV 일괄 업로드
+              <input
+                type="file"
+                accept=".csv"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                      const result = parseCSVAndSaveItems(evt.target.result);
+                      if (result) {
+                        setItems(getTeacherItems());
+                        if (onDataChange) onDataChange();
+                        alert(`🎉 성공! ${result.length}개의 판매 물품이 일괄 등록되고 QR 코드가 자동 생성되었습니다!`);
+                      } else {
+                        alert('CSV 파일 형식을 확인해주세요. (Name,Price,Stock)');
+                      }
+                    };
+                    reader.readAsText(file, 'UTF-8');
+                  }
+                }}
+              />
+            </label>
+          </div>
 
           <form onSubmit={handleCreateItem} className="item-form">
-            <div className="form-group">
-              <label>아이콘 선택</label>
-              <div className="icon-selector">
-                {iconsList.map((ic) => (
-                  <span
-                    key={ic}
-                    className={`icon-chip ${newItemIcon === ic ? 'selected' : ''}`}
-                    onClick={() => setNewItemIcon(ic)}
-                  >
-                    {ic}
-                  </span>
-                ))}
-              </div>
-            </div>
-
             <div className="form-group">
               <label>물품 이름</label>
               <input
@@ -164,7 +362,7 @@ export const TeacherView = ({ onBackToStudent, onDataChange }) => {
             </div>
 
             <div className="form-group">
-              <label>판매 가격 (달란트)</label>
+              <label>판매 가격 (스탬프)</label>
               <input
                 type="number"
                 min="1"
@@ -172,16 +370,6 @@ export const TeacherView = ({ onBackToStudent, onDataChange }) => {
                 value={newItemPrice}
                 onChange={(e) => setNewItemPrice(e.target.value)}
                 required
-              />
-            </div>
-
-            <div className="form-group">
-              <label>설명 (선택)</label>
-              <input
-                type="text"
-                placeholder="간략한 물품 설명"
-                value={newItemDesc}
-                onChange={(e) => setNewItemDesc(e.target.value)}
               />
             </div>
 
@@ -204,11 +392,9 @@ export const TeacherView = ({ onBackToStudent, onDataChange }) => {
         <div className="teacher-items-grid">
           {items.map((item) => (
             <div key={item.id} className="teacher-item-card">
-              <div className="t-item-icon">{item.icon}</div>
               <div className="t-item-info">
                 <h4>{item.name}</h4>
-                <p>{item.description}</p>
-                <span className="t-price-badge">{item.price} DALLAR</span>
+                <span className="t-price-badge">{item.price} STAMP</span>
               </div>
 
               <div className="t-item-actions">

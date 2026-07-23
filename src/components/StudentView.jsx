@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { playClickSound, playCoinSound, toggleSound, isSoundEnabled } from '../utils/sound';
 import { getTeacherItems, getPurchaseHistory } from '../utils/storage';
-import { Camera, Volume2, VolumeX, Sparkles, Gift, Trophy, ShoppingBag, History, Award, User } from 'lucide-react';
+import { Camera, Volume2, VolumeX, Sparkles, Gift, Trophy, ShoppingBag, History, Award, User, Coins, QrCode } from 'lucide-react';
 
 export const StudentView = ({
   student,
   onOpenScanner,
   onOpenWheel,
-  onOpenLuckyBox,
-  onSelectItemToBuy,
-  onSwitchToTeacher
+  onLogout
 }) => {
   const [soundOn, setSoundOn] = useState(isSoundEnabled());
   const [showHistory, setShowHistory] = useState(false);
@@ -30,7 +28,9 @@ export const StudentView = ({
         <div className="student-profile">
           <span className="avatar-badge">{student.avatar || '🦁'}</span>
           <div>
-            <h2 className="student-name">{student.name}</h2>
+            <h2 className="student-name">
+              {student.name} <small style={{ fontSize: '0.75rem', color: '#AAA' }}>({student.id || 'student01'})</small>
+            </h2>
             <span className="student-sub">2026 Summer School Student</span>
           </div>
         </div>
@@ -40,11 +40,12 @@ export const StudentView = ({
             {soundOn ? <Volume2 size={20} className="text-gold" /> : <VolumeX size={20} className="text-gray" />}
           </button>
           <button
-            className="icon-action-btn teacher-switch"
-            onClick={() => { playClickSound(); onSwitchToTeacher(); }}
-            title="선생님 모드"
+            className="icon-action-btn"
+            onClick={() => { playClickSound(); onLogout(); }}
+            title="처음 화면(로그인)으로 이동"
+            style={{ width: 'auto', padding: '0 10px', fontSize: '0.75rem', fontWeight: '800' }}
           >
-            <Award size={20} />
+            🚪 처음으로
           </button>
         </div>
       </div>
@@ -52,37 +53,37 @@ export const StudentView = ({
       {/* Wallet Balance Hero Card (Temu Gold Theme) */}
       <div className="wallet-hero-card glow-temu">
         <div className="wallet-header">
-          <span>MY DALAN WALLET</span>
+          <span>MY STAMP WALLET</span>
           <span className="pulse-dot">● LIVE</span>
         </div>
 
         <div className="balance-display">
           <span className="coin-emoji animate-bounce-slow">🪙</span>
           <h1 className="balance-amount">{student.points}</h1>
-          <span className="currency-unit">DALLAR</span>
+          <span className="currency-unit">STAMP</span>
         </div>
 
         {/* Quick Game Event Buttons */}
-        <div className="event-buttons-row">
+        <div className="event-buttons-row" style={{ gridTemplateColumns: '1fr' }}>
           <button
             className={`event-btn temu-wheel-btn ${student.spinsLeft > 0 ? 'pulse' : ''}`}
-            onClick={() => { playClickSound(); onOpenWheel(); }}
+            style={{ width: '100%', padding: '16px', justifyContent: 'center' }}
+            onClick={() => {
+              if ((student.spinsLeft || 0) <= 0) {
+                alert('🔒 선생님의 [룰렛 1회 승인 QR]을 스캔하거나 선생님께 룰렛 승인을 받으세요!');
+                onOpenScanner();
+                return;
+              }
+              playClickSound();
+              onOpenWheel();
+            }}
           >
-            <span className="event-icon">🎡</span>
+            <span className="event-icon" style={{ fontSize: '28px' }}>🎡</span>
             <div className="event-text">
-              <strong>100% 당첨 룰렛</strong>
-              <span className="badge-count">티켓: {student.spinsLeft || 0}개</span>
-            </div>
-          </button>
-
-          <button
-            className="event-btn lucky-box-btn"
-            onClick={() => { playClickSound(); onOpenLuckyBox(); }}
-          >
-            <span className="event-icon">🎁</span>
-            <div className="event-text">
-              <strong>럭키 뽑기 상자</strong>
-              <span className="badge-count">2D 도전</span>
+              <strong style={{ fontSize: '1rem' }}>100% 당첨 룰렛 이벤트</strong>
+              <span className="badge-count" style={{ fontSize: '0.8rem' }}>
+                {student.spinsLeft > 0 ? `승인됨: ${student.spinsLeft}회 도전 가능` : '🔒 선생님 승인 필요'}
+              </span>
             </div>
           </button>
         </div>
@@ -97,78 +98,59 @@ export const StudentView = ({
           <div className="btn-glow-ring"></div>
           <Camera size={32} />
           <span>선생님 QR 코드 스캔하기</span>
-          <small>카메라로 물품 QR 또는 포인트 QR을 스캔하세요!</small>
+          <small>카메라로 물품 QR 또는 스탬프 QR을 스캔하세요!</small>
         </button>
       </div>
 
-      {/* Badges Bar */}
-      <div className="badges-bar">
-        <span className="badges-label">🎖️ 획득 뱃지:</span>
-        <div className="badges-list">
-          {student.badges.map((b, idx) => (
-            <span key={idx} className="badge-pill">{b}</span>
-          ))}
-        </div>
-      </div>
-
-      {/* Market Items & History Toggle Tab */}
-      <div className="market-section">
-        <div className="section-tabs">
-          <button
-            className={`tab-btn ${!showHistory ? 'active' : ''}`}
-            onClick={() => setShowHistory(false)}
-          >
-            <ShoppingBag size={18} /> Dallar Market 물품 ({items.length})
-          </button>
-          <button
-            className={`tab-btn ${showHistory ? 'active' : ''}`}
-            onClick={() => setShowHistory(true)}
-          >
-            <History size={18} /> 내 구매 영수증 ({history.length})
-          </button>
-        </div>
-
-        {!showHistory ? (
-          /* Items Grid */
-          <div className="items-grid">
-            {items.map((item) => (
-              <div key={item.id} className="item-card glow-subtle">
-                <div className="item-badge">{item.badge || 'POPULAR'}</div>
-                <div className="item-icon-wrapper">{item.icon}</div>
-                <h3 className="item-name">{item.name}</h3>
-                <p className="item-desc">{item.description}</p>
-
-                <div className="item-footer">
-                  <span className="price-tag">{item.price} DALLAR</span>
-                  <button
-                    className="buy-btn"
-                    onClick={() => { playClickSound(); onSelectItemToBuy(item); }}
-                  >
-                    구매
-                  </button>
-                </div>
-              </div>
-            ))}
+      {/* Bible Verses Section */}
+      <div className="bible-verses-section" style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div
+          className="bible-card glow-subtle"
+          style={{
+            background: 'linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(20, 20, 30, 0.85))',
+            border: '2px solid rgba(255, 215, 0, 0.5)',
+            borderRadius: '20px',
+            padding: '20px 24px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            backdropFilter: 'blur(10px)',
+            color: '#FFFFFF',
+            lineHeight: '1.7',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', color: 'var(--temu-yellow)', fontWeight: '900', fontSize: '1.05rem' }}>
+            <span>📖</span>
+            <span>마태복음 13:44</span>
           </div>
-        ) : (
-          /* Purchase History List */
-          <div className="history-list">
-            {history.length === 0 ? (
-              <p className="empty-msg">아직 구매 내역이 없습니다. QR을 스캔해 물품을 사보세요!</p>
-            ) : (
-              history.map((rec, idx) => (
-                <div key={idx} className="history-card">
-                  <div className="h-icon">{rec.icon || '🛍️'}</div>
-                  <div className="h-info">
-                    <h4>{rec.name}</h4>
-                    <span className="h-time">{rec.timestamp}</span>
-                  </div>
-                  <span className="h-price">-{rec.price} D</span>
-                </div>
-              ))
-            )}
+          <p style={{ fontSize: '1rem', fontWeight: '600', wordBreak: 'keep-all', color: '#F8F9FA', margin: 0 }}>
+            "천국은 마치 밭에 감추인 보화와 같으니 사람이 이를 발견한 후 숨겨 두고 기뻐하여 돌아가서 자기의 소유를 다 팔아 그 밭을 샀느니라"
+          </p>
+        </div>
+
+        <div
+          className="bible-card glow-subtle"
+          style={{
+            background: 'linear-gradient(135deg, rgba(255, 199, 0, 0.12), rgba(30, 20, 40, 0.85))',
+            border: '2px solid rgba(255, 199, 0, 0.5)',
+            borderRadius: '20px',
+            padding: '20px 24px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            backdropFilter: 'blur(10px)',
+            color: '#FFFFFF',
+            lineHeight: '1.7',
+            position: 'relative',
+            overflow: 'hidden'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', color: 'var(--temu-yellow)', fontWeight: '900', fontSize: '1.05rem' }}>
+            <span>📖</span>
+            <span>마태복음 25:20-21</span>
           </div>
-        )}
+          <p style={{ fontSize: '0.95rem', fontWeight: '600', wordBreak: 'keep-all', color: '#F8F9FA', margin: 0 }}>
+            "다섯 달란트 받았던 자는 다섯 달란트를 더 가지고 와서 가로되 주여 내게 다섯 달란트를 주셨는데 보소서 내가 또 다섯 달란트를 남겼나이다. 그 주인이 이르되 잘 하였도다 착하고 충성된 종아 네가 작은 일에 충성하였으매 내가 많은 것으로 네게 맡기리니 네 주인의 즐거움에 참예할찌어다."
+          </p>
+        </div>
       </div>
     </div>
   );
