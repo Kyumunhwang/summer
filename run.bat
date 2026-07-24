@@ -53,7 +53,7 @@ if not exist "node_modules\" (
 )
 
 :: 5. 3초 후 웹 브라우저 자동 열기
-echo 🌐 개발 서버 실행 후 웹 브라우저가 자동으로 열립니다 (https://localhost:5173/)
+echo 🌐 서버 실행 후 브라우저가 열립니다 (https://localhost:5173/ 또는 https://192.168.5.118:5173/)
 start "" powershell -Command "Start-Sleep -Seconds 3; Start-Process 'https://localhost:5173/'"
 
 :: 6. 개발 서버 실행

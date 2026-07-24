@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { getStudentsList, saveStudentData } from '../utils/storage';
 import { playClickSound, playCoinSound, playErrorSound } from '../utils/sound';
-import { UserCheck, Key, User, ShieldCheck, Lock, Award, Sparkles } from 'lucide-react';
+import { UserCheck, Key, User, ShieldCheck, Lock, Award, Sparkles, QrCode } from 'lucide-react';
 
 export const MainLoginScreen = ({ onStudentLoginSuccess, onTeacherLoginSuccess }) => {
   const [students, setStudents] = useState(getStudentsList());
@@ -13,6 +14,9 @@ export const MainLoginScreen = ({ onStudentLoginSuccess, onTeacherLoginSuccess }
   const [showTeacherAuthModal, setShowTeacherAuthModal] = useState(false);
   const [teacherPasswordInput, setTeacherPasswordInput] = useState('');
   const [teacherAuthError, setTeacherAuthError] = useState('');
+
+  // Server URL Connection QR Modal State
+  const [showServerQRModal, setShowServerQRModal] = useState(false);
 
   useEffect(() => {
     const freshList = getStudentsList();
@@ -218,7 +222,81 @@ export const MainLoginScreen = ({ onStudentLoginSuccess, onTeacherLoginSuccess }
         >
           <Award size={18} /> 👨‍🏫 선생님 모드 (TEACHER ADMIN) 입장
         </button>
+
+        {/* Server Connection QR Code Modal Button */}
+        <button
+          type="button"
+          onClick={() => {
+            playClickSound();
+            setShowServerQRModal(true);
+          }}
+          style={{
+            width: '100%',
+            padding: '12px',
+            marginTop: '10px',
+            borderRadius: '14px',
+            background: 'rgba(255, 255, 255, 0.06)',
+            border: '1.5px solid var(--temu-yellow)',
+            color: 'var(--temu-yellow)',
+            fontSize: '0.9rem',
+            fontWeight: '800',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px'
+          }}
+        >
+          <QrCode size={18} /> 📱 학생 접속용 QR 코드 (192.168.5.118)
+        </button>
       </div>
+
+      {/* Server Connection URL QR Code Modal */}
+      {showServerQRModal && (
+        <div className="modal-overlay" onClick={() => setShowServerQRModal(false)}>
+          <div
+            className="qr-display-card animate-pop"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '380px', padding: '24px', textAlign: 'center' }}
+          >
+            <button className="close-btn" onClick={() => setShowServerQRModal(false)}>
+              ✕
+            </button>
+            <div className="qr-display-header">
+              <span className="qr-big-icon" style={{ fontSize: '36px' }}>🌐</span>
+              <h2 style={{ fontSize: '1.3rem', fontWeight: '900', color: 'var(--temu-yellow)' }}>
+                학생 휴대폰 접속용 QR 코드
+              </h2>
+              <p style={{ fontSize: '0.85rem', color: '#CCC', marginTop: '6px' }}>
+                학생들이 휴대폰 카메라로 위 QR 코드를 스캔하면 바로 접속할 수 있습니다!
+              </p>
+            </div>
+
+            <div className="qr-code-box" style={{ margin: '16px auto', padding: '16px', background: '#FFF', borderRadius: '16px', display: 'inline-block' }}>
+              <QRCodeSVG
+                value="https://192.168.5.118:5173/"
+                size={220}
+                bgColor={'#ffffff'}
+                fgColor={'#111111'}
+                level={'H'}
+                includeMargin={true}
+              />
+            </div>
+
+            <p style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--temu-yellow)', marginBottom: '16px' }}>
+              https://192.168.5.118:5173/
+            </p>
+
+            <button
+              className="claim-btn"
+              onClick={() => setShowServerQRModal(false)}
+              style={{ background: 'var(--temu-red)', color: 'white', margin: '0 auto' }}
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Teacher Authentication Password Modal */}
       {showTeacherAuthModal && (

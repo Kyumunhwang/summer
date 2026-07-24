@@ -176,6 +176,21 @@ export const TeacherView = ({ onBackToStudent, onDataChange }) => {
           )}
 
           <div className="quick-qr-buttons" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <button
+              className="q-btn gold"
+              style={{ gridColumn: 'span 2', padding: '12px', background: 'var(--gold-gradient)', color: '#111', fontWeight: '900', fontSize: '0.95rem' }}
+              onClick={() => {
+                playClickSound();
+                setActiveQRModal({
+                  title: '🌐 학생 휴대폰 접속용 QR 코드',
+                  subtitle: '스마트폰 카메라로 스캔하면 즉시 접속합니다! (https://192.168.5.118:5173/)',
+                  qrData: 'https://192.168.5.118:5173/',
+                  icon: '📱'
+                });
+              }}
+            >
+              🌐 학생 접속용 URL QR 코드 띄우기 (https://192.168.5.118:5173/)
+            </button>
             <button className="q-btn green" onClick={() => showRewardPointQR(1)}>
               🪙 1 스탬프 지급 QR
             </button>
