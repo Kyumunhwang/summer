@@ -422,47 +422,84 @@ export const resetAllData = () => {
   getGameConfig();
 };
 
-// Smart CSV & Tab-delimited Item Parser
+// Smart CSV & Tab-delimited Item Parser with Header Defense & Concurrency Protection
 export const parseCSVToItems = (csvText) => {
   if (!csvText || !csvText.trim()) return [];
 
   const lines = csvText.trim().split(/\r?\n/);
   if (lines.length === 0) return [];
 
-  const items = [];
-  let startIdx = 0;
-  const firstLineLower = lines[0].toLowerCase();
-  if (
-    firstLineLower.includes('id') ||
-    firstLineLower.includes('name') ||
-    firstLineLower.includes('price') ||
-    firstLineLower.includes('stock')
-  ) {
-    startIdx = 1;
-  }
+  const tokenizeLine = (line) => {
+    let tokens = [];
+    if (line.includes('\t')) {
+      tokens = line.split('\t');
+    } else {
+      tokens = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || line.split(',');
+    }
+    return tokens.map(v => v.trim().replace(/^"|"$/g, ''));
+  };
 
+  const headerTokens = tokenizeLine(lines[0]);
+  const colMap = { id: -1, name: -1, price: -1, stock: -1, category: -1, badge: -1, description: -1 };
+
+  headerTokens.forEach((token, idx) => {
+    const t = token.toLowerCase().replace(/[\s_\-]/g, '');
+    if (['id', '아이디', '코드', '물품id', '품번'].includes(t)) colMap.id = idx;
+    else if (['name', '이름', '물품명', '상품명', '품명', '제목'].includes(t)) colMap.name = idx;
+    else if (['price', '가격', '금액', '달란트', '포인트'].includes(t)) colMap.price = idx;
+    else if (['stock', '재고', '수량', '잔여수량', '남은수량'].includes(t)) colMap.stock = idx;
+    else if (['category', '카테고리', '분류', '종류'].includes(t)) colMap.category = idx;
+    else if (['badge', '뱃지', '태그', '배지'].includes(t)) colMap.badge = idx;
+    else if (['description', '설명', '상세설명', '비고'].includes(t)) colMap.description = idx;
+  });
+
+  const hasDetectedHeader = (colMap.name !== -1 || colMap.price !== -1);
+  const startIdx = hasDetectedHeader ? 1 : 0;
+
+  // Preserve existing stock values if not explicitly provided or already changed
+  const existingMap = new Map();
+  getTeacherItems().forEach(it => {
+    if (it && it.id) existingMap.set(String(it.id).trim(), it);
+  });
+
+  const items = [];
   for (let i = startIdx; i < lines.length; i++) {
     const rawLine = lines[i].trim();
     if (!rawLine) continue;
 
-    let tokens = [];
-    if (rawLine.includes('\t')) {
-      tokens = rawLine.split('\t');
-    } else {
-      tokens = rawLine.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || rawLine.split(',');
+    const values = tokenizeLine(rawLine);
+    if (values.length === 0 || !values.some(v => v !== '')) continue;
+
+    const rawId = hasDetectedHeader && colMap.id !== -1 ? values[colMap.id] : values[0];
+    const rawName = hasDetectedHeader && colMap.name !== -1 ? values[colMap.name] : values[1];
+    const rawPrice = hasDetectedHeader && colMap.price !== -1 ? values[colMap.price] : values[2];
+    const rawStock = hasDetectedHeader && colMap.stock !== -1 ? values[colMap.stock] : values[3];
+    const rawCat = hasDetectedHeader && colMap.category !== -1 ? values[colMap.category] : values[4];
+    const rawBadge = hasDetectedHeader && colMap.badge !== -1 ? values[colMap.badge] : values[5];
+    const rawDesc = hasDetectedHeader && colMap.description !== -1 ? values[colMap.description] : values[6];
+
+    const cleanName = cleanItemName(rawName || `상품 ${i + 1}`);
+    const cleanId = rawId ? rawId.trim() : `item_${Date.now()}_${i}`;
+    const parsedPrice = parseInt(String(rawPrice || '10').replace(/[^0-9]/g, ''), 10) || 10;
+    
+    // Concurrency Safety: If existing item has modified stock, preserve or update smartly
+    const existing = existingMap.get(cleanId);
+    let parsedStock = 20;
+    if (rawStock !== undefined && rawStock !== '') {
+      parsedStock = parseInt(String(rawStock).replace(/[^0-9]/g, ''), 10);
+      if (isNaN(parsedStock)) parsedStock = 20;
+    } else if (existing && existing.stock !== undefined) {
+      parsedStock = existing.stock;
     }
 
-    const cleanValues = tokens.map(v => v.trim().replace(/^"|"$/g, ''));
-    if (cleanValues.length === 0 || !cleanValues[0]) continue;
-
     const item = {
-      id: cleanValues[0] || ('item_' + Date.now() + '_' + i),
-      name: cleanItemName(cleanValues[1] || ('상품 ' + i)),
-      price: parseInt(cleanValues[2], 10) || 10,
-      stock: parseInt(cleanValues[3], 10) || 20,
-      category: cleanValues[4] || '기타',
-      badge: cleanValues[5] || 'NEW',
-      description: cleanValues[6] || ''
+      id: cleanId,
+      name: cleanName,
+      price: parsedPrice,
+      stock: parsedStock,
+      category: rawCat || '기타',
+      badge: rawBadge || 'NEW',
+      description: rawDesc || ''
     };
     items.push(item);
   }
@@ -473,12 +510,38 @@ export const parseCSVToItems = (csvText) => {
   return items;
 };
 
-// Smart CSV & Tab-delimited (Google Sheet / Excel Copy-Paste) Parser
+
+// Smart CSV & Tab-delimited (Google Sheet / Excel Copy-Paste) Parser with Header Defense
 export const parseCSVToStudents = (csvText) => {
   if (!csvText || !csvText.trim()) return [];
 
   const lines = csvText.trim().split(/\r?\n/);
   if (lines.length === 0) return [];
+
+  const tokenizeLine = (line) => {
+    let tokens = [];
+    if (line.includes('\t')) {
+      tokens = line.split('\t');
+    } else {
+      tokens = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || line.split(',');
+    }
+    return tokens.map(v => v.trim().replace(/^"|"$/g, ''));
+  };
+
+  const headerTokens = tokenizeLine(lines[0]);
+  const colMap = { id: -1, name: -1, password: -1, points: -1, spinsLeft: -1 };
+
+  headerTokens.forEach((token, idx) => {
+    const t = token.toLowerCase().replace(/[\s_\-]/g, '');
+    if (['id', '아이디', '학생id', '학번', '계정'].includes(t)) colMap.id = idx;
+    else if (['name', '이름', '학생이름', '학생명', '성명'].includes(t)) colMap.name = idx;
+    else if (['password', '비밀번호', '비번', 'pw', 'pass'].includes(t)) colMap.password = idx;
+    else if (['points', '포인트', '달란트', '점수', '잔액'].includes(t)) colMap.points = idx;
+    else if (['spinsleft', '룰렛', '뽑기', '기회', '티켓'].includes(t)) colMap.spinsLeft = idx;
+  });
+
+  const hasDetectedHeader = (colMap.name !== -1 || colMap.id !== -1 || colMap.password !== -1);
+  const startIdx = hasDetectedHeader ? 1 : 0;
 
   const studentMap = new Map();
   const existingStudents = getAllStudents();
@@ -488,50 +551,38 @@ export const parseCSVToStudents = (csvText) => {
     }
   });
 
-  // Check if first line is a header
-  let startIdx = 0;
-  const firstLineLower = lines[0].toLowerCase();
-  if (
-    firstLineLower.includes('id') ||
-    firstLineLower.includes('name') ||
-    firstLineLower.includes('password') ||
-    firstLineLower.includes('points')
-  ) {
-    startIdx = 1;
-  }
-
   for (let i = startIdx; i < lines.length; i++) {
     const rawLine = lines[i].trim();
     if (!rawLine) continue;
 
-    // Detect delimiter: tab (\t) or comma (,)
-    let tokens = [];
-    if (rawLine.includes('\t')) {
-      tokens = rawLine.split('\t');
-    } else {
-      tokens = rawLine.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || rawLine.split(',');
-    }
+    const values = tokenizeLine(rawLine);
+    if (values.length === 0 || !values.some(v => v !== '')) continue;
 
-    const cleanValues = tokens.map(v => v.trim().replace(/^"|"$/g, ''));
-    if (cleanValues.length === 0 || !cleanValues[0]) continue;
+    const rawId = hasDetectedHeader && colMap.id !== -1 ? values[colMap.id] : values[0];
+    const rawName = hasDetectedHeader && colMap.name !== -1 ? values[colMap.name] : values[1];
+    const rawPw = hasDetectedHeader && colMap.password !== -1 ? values[colMap.password] : values[2];
+    const rawPoints = hasDetectedHeader && colMap.points !== -1 ? values[colMap.points] : values[3];
+    const rawSpins = hasDetectedHeader && colMap.spinsLeft !== -1 ? values[colMap.spinsLeft] : values[4];
 
-    const id = cleanValues[0];
-    const name = cleanValues[1] || id;
-    const password = cleanValues[2] !== undefined && cleanValues[2] !== '' ? String(cleanValues[2]).trim() : '1234';
-    const points = parseInt(cleanValues[3], 10);
-    const spinsLeft = parseInt(cleanValues[4], 10);
+    if (!rawId) continue;
 
-    const mapKey = id.trim().toLowerCase();
+    const id = rawId.trim();
+    const name = rawName ? rawName.trim() : id;
+    const password = (rawPw !== undefined && rawPw !== '') ? String(rawPw).trim() : '1234';
+    const parsedPoints = rawPoints !== undefined ? parseInt(String(rawPoints).replace(/[^0-9]/g, ''), 10) : NaN;
+    const parsedSpins = rawSpins !== undefined ? parseInt(String(rawSpins).replace(/[^0-9]/g, ''), 10) : NaN;
+
+    const mapKey = id.toLowerCase();
     const existing = studentMap.get(mapKey) || {};
 
     const studentObj = {
       ...existing,
-      id: id.trim(),
-      name: name.trim(),
+      id: id,
+      name: name,
       password: password,
-      points: !isNaN(points) ? points : (existing.points !== undefined ? existing.points : 100),
-      spinsLeft: !isNaN(spinsLeft) ? spinsLeft : 1,
-      luckyBoxSpinsLeft: 1,
+      points: !isNaN(parsedPoints) ? parsedPoints : (existing.points !== undefined ? existing.points : 100),
+      spinsLeft: !isNaN(parsedSpins) ? parsedSpins : (existing.spinsLeft !== undefined ? existing.spinsLeft : 1),
+      luckyBoxSpinsLeft: existing.luckyBoxSpinsLeft !== undefined ? existing.luckyBoxSpinsLeft : 1,
       totalSpins: existing.totalSpins || 0
     };
 
@@ -542,6 +593,7 @@ export const parseCSVToStudents = (csvText) => {
   saveAllStudents(updatedStudents);
   return updatedStudents;
 };
+
 
 // Export Students CSV File Format: id,name,password,points,spinsLeft
 export const exportStudentsToCSV = (students) => {
