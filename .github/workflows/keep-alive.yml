@@ -1,0 +1,33 @@
+name: Keep Service Awake & Healthy
+
+on:
+  schedule:
+    # Runs every 10 minutes to prevent cold starts and idle spin-downs
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Frontend Vercel Service
+        run: |
+          echo "Pinging Vercel Production URL: https://market-ashy-one.vercel.app/"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://market-ashy-one.vercel.app/)
+          echo "Vercel Response HTTP Status: $STATUS"
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+            echo "✅ Frontend is healthy and active."
+          else
+            echo "⚠️ Frontend returned unexpected status: $STATUS"
+          fi
+
+      - name: Ping Backend Service (If Configured)
+        run: |
+          # If a cloud backend URL secret (BACKEND_URL) is present, ping backend healthcheck
+          if [ -n "${{ secrets.BACKEND_URL }}" ]; then
+            echo "Pinging Backend URL: ${{ secrets.BACKEND_URL }}"
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ secrets.BACKEND_URL }}/docs")
+            echo "Backend Response HTTP Status: $STATUS"
+          else
+            echo "ℹ️ No remote backend URL configured yet. Skipping backend ping."
+          fi
